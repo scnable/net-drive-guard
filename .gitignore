@@ -1,0 +1,29 @@
+# 项目内部资料与遗留实现
+/doc/
+/win10_shell/
+/internal-tools/
+
+# 项目本地开发工具
+/.dotnet/
+/.tools/
+/.dotnet-cli-home/
+
+# .NET 构建与测试产物
+**/bin/
+**/obj/
+**/TestResults/
+/artifacts/
+
+# Visual Studio 本地状态
+.vs/
+*.user
+*.suo
+
+# 本地运行配置、状态和日志
+/config.local.json
+/status.json
+/events/
+*.log
+
+# 发布产物
+/publish/
