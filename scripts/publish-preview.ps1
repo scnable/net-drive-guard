@@ -35,10 +35,22 @@ $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 
-& $dotnet publish (Join-Path $projectRoot 'src\NetDriveGuard.App\NetDriveGuard.App.csproj') `
+$appProject = Join-Path $projectRoot 'src\NetDriveGuard.App\NetDriveGuard.App.csproj'
+
+& $dotnet restore $appProject `
+    --runtime win-x64 `
+    --ignore-failed-sources `
+    -p:NuGetAudit=false
+
+if ($LASTEXITCODE -ne 0) {
+    throw "发布还原失败，dotnet 退出码：$LASTEXITCODE"
+}
+
+& $dotnet publish $appProject `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `
+    --no-restore `
     --output $requestedOutput `
     -p:PublishSingleFile=true `
     -p:EnableCompressionInSingleFile=true `

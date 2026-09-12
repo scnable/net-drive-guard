@@ -6,29 +6,41 @@ using NetDriveGuard.Core.Monitoring;
 namespace NetDriveGuard.Windows;
 
 /// <summary>
-/// 只追加的 JSONL 事件存储。读取时只扫描文件尾部，不执行删除、覆盖或轮转。
+/// 带大小上限的 JSONL 事件存储。轮转范围仅限同目录下固定编号的归档文件。
 /// </summary>
 public sealed class JsonLinesMonitorEventStore : IMonitorEventStore, IDisposable
 {
     private const int DefaultMaxReadBytes = 1024 * 1024;
+    private const int DefaultMaxEventFileBytes = 5 * 1024 * 1024;
+    private const int DefaultArchiveCount = 3;
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly string _eventPath;
     private readonly string _eventDirectory;
     private readonly int _maxReadBytes;
+    private readonly int _maxEventFileBytes;
+    private readonly int _archiveCount;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
     public JsonLinesMonitorEventStore(
         string eventPath,
-        int maxReadBytes = DefaultMaxReadBytes)
+        int maxReadBytes = DefaultMaxReadBytes,
+        int maxEventFileBytes = DefaultMaxEventFileBytes,
+        int archiveCount = DefaultArchiveCount)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventPath);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxReadBytes, 128);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxReadBytes, 16 * 1024 * 1024);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxEventFileBytes, 1024);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxEventFileBytes, 64 * 1024 * 1024);
+        ArgumentOutOfRangeException.ThrowIfLessThan(archiveCount, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(archiveCount, 10);
 
         _eventPath = Path.GetFullPath(eventPath);
         _eventDirectory = Path.GetDirectoryName(_eventPath)
             ?? throw new ArgumentException("事件路径必须包含目录。", nameof(eventPath));
         _maxReadBytes = maxReadBytes;
+        _maxEventFileBytes = maxEventFileBytes;
+        _archiveCount = archiveCount;
     }
 
     public async Task AppendAsync(
@@ -45,6 +57,8 @@ public sealed class JsonLinesMonitorEventStore : IMonitorEventStore, IDisposable
         try
         {
             Directory.CreateDirectory(_eventDirectory);
+            var lineBytes = Encoding.UTF8.GetByteCount(line) + Environment.NewLine.Length;
+            RotateIfNeeded(lineBytes);
             await using var stream = new FileStream(
                 _eventPath,
                 FileMode.Append,
@@ -70,33 +84,41 @@ public sealed class JsonLinesMonitorEventStore : IMonitorEventStore, IDisposable
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxCount, 1000);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!File.Exists(_eventPath))
+        var events = new List<MonitorEvent>(maxCount);
+        foreach (var path in EnumerateEventPaths())
         {
-            return [];
-        }
-
-        var text = await ReadTailAsync(cancellationToken).ConfigureAwait(false);
-        var lines = text.Split(
-            ['\r', '\n'],
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var events = new List<MonitorEvent>(Math.Min(maxCount, lines.Length));
-        for (var index = lines.Length - 1; index >= 0 && events.Count < maxCount; index--)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
+            if (!File.Exists(path))
             {
-                var entry = JsonSerializer.Deserialize<StoredMonitorEvent>(
-                    lines[index],
-                    SerializerOptions);
-                if (entry is not null)
+                continue;
+            }
+
+            var text = await ReadTailAsync(path, cancellationToken).ConfigureAwait(false);
+            var lines = text.Split(
+                ['\r', '\n'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            for (var index = lines.Length - 1; index >= 0 && events.Count < maxCount; index--)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
                 {
-                    events.Add(entry.ToMonitorEvent());
+                    var entry = JsonSerializer.Deserialize<StoredMonitorEvent>(
+                        lines[index],
+                        SerializerOptions);
+                    if (entry is not null)
+                    {
+                        events.Add(entry.ToMonitorEvent());
+                    }
+                }
+                catch (Exception exception) when (
+                    exception is JsonException or ArgumentException)
+                {
+                    // 忽略损坏或不兼容行，继续恢复其他完整事件。
                 }
             }
-            catch (Exception exception) when (
-                exception is JsonException or ArgumentException)
+
+            if (events.Count >= maxCount)
             {
-                // 忽略损坏或不兼容行，继续恢复其他完整事件。
+                break;
             }
         }
 
@@ -108,10 +130,43 @@ public sealed class JsonLinesMonitorEventStore : IMonitorEventStore, IDisposable
         _writeGate.Dispose();
     }
 
-    private async Task<string> ReadTailAsync(CancellationToken cancellationToken)
+    private void RotateIfNeeded(int pendingBytes)
+    {
+        if (!File.Exists(_eventPath))
+        {
+            return;
+        }
+
+        var currentLength = new FileInfo(_eventPath).Length;
+        if (currentLength + pendingBytes <= _maxEventFileBytes)
+        {
+            return;
+        }
+
+        foreach (var operation in EventRotationPlanner.Plan(_eventPath, _archiveCount))
+        {
+            if (File.Exists(operation.SourcePath))
+            {
+                File.Move(operation.SourcePath, operation.DestinationPath, overwrite: true);
+            }
+        }
+    }
+
+    private IEnumerable<string> EnumerateEventPaths()
+    {
+        yield return _eventPath;
+        for (var index = 1; index <= _archiveCount; index++)
+        {
+            yield return EventRotationPlanner.GetArchivePath(_eventPath, index);
+        }
+    }
+
+    private async Task<string> ReadTailAsync(
+        string path,
+        CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(
-            _eventPath,
+            path,
             FileMode.Open,
             FileAccess.Read,
             FileShare.ReadWrite,
@@ -166,5 +221,40 @@ public sealed class JsonLinesMonitorEventStore : IMonitorEventStore, IDisposable
         {
             return new MonitorEvent(OccurredAt, State, Severity, Code, Description);
         }
+    }
+}
+
+internal sealed record EventRotationMove(string SourcePath, string DestinationPath);
+
+internal static class EventRotationPlanner
+{
+    public static IReadOnlyList<EventRotationMove> Plan(string eventPath, int archiveCount)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventPath);
+        ArgumentOutOfRangeException.ThrowIfLessThan(archiveCount, 1);
+
+        var operations = new List<EventRotationMove>(archiveCount);
+        for (var index = archiveCount - 1; index >= 1; index--)
+        {
+            operations.Add(
+                new EventRotationMove(
+                    GetArchivePath(eventPath, index),
+                    GetArchivePath(eventPath, index + 1)));
+        }
+
+        operations.Add(new EventRotationMove(eventPath, GetArchivePath(eventPath, 1)));
+        return operations;
+    }
+
+    public static string GetArchivePath(string eventPath, int index)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventPath);
+        ArgumentOutOfRangeException.ThrowIfLessThan(index, 1);
+        var fullPath = Path.GetFullPath(eventPath);
+        var directory = Path.GetDirectoryName(fullPath)
+            ?? throw new ArgumentException("事件路径必须包含目录。", nameof(eventPath));
+        var name = Path.GetFileNameWithoutExtension(fullPath);
+        var extension = Path.GetExtension(fullPath);
+        return Path.Combine(directory, $"{name}.{index}{extension}");
     }
 }

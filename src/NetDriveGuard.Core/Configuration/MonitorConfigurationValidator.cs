@@ -14,6 +14,11 @@ public static class MonitorConfigurationValidator
 
         var issues = new List<ConfigurationIssue>();
 
+        if (configuration.Language is not "zh-CN" and not "en")
+        {
+            issues.Add(new ConfigurationIssue("language.invalid", "请选择简体中文或 English。"));
+        }
+
         if (!IsValidDriveLetter(configuration.DriveLetter))
         {
             issues.Add(new ConfigurationIssue("drive.invalid", "盘符必须使用类似 Z: 的格式。"));

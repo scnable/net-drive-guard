@@ -12,8 +12,11 @@ public sealed record MonitorConfiguration(
     TimeSpan? CustomTcpInterval = null,
     int OfflineFailureThreshold = 3,
     bool RemoveMappingWhenOffline = false,
+    bool RepairMissingMapping = false,
+    bool StartAtLogon = false,
     TimeSpan? TcpTimeout = null,
-    TimeSpan? OverallCheckTimeout = null)
+    TimeSpan? OverallCheckTimeout = null,
+    string Language = "zh-CN")
 {
     public TimeSpan EffectiveTcpTimeout => TcpTimeout ?? TimeSpan.FromMilliseconds(800);
 

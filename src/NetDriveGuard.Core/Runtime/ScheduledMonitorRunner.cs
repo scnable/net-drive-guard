@@ -11,6 +11,7 @@ public sealed class ScheduledMonitorRunner
     private readonly MonitorCoordinator _coordinator;
     private readonly LayeredSchedulePlanner _planner;
     private readonly IClock _clock;
+    private readonly bool _hasConfiguration;
     private readonly Lock _scheduleLock = new();
     private ScheduleSnapshot _scheduleSnapshot;
 
@@ -18,11 +19,14 @@ public sealed class ScheduledMonitorRunner
         MonitorCoordinator coordinator,
         LayeredSchedulePlanner planner,
         IClock clock,
-        ScheduleSnapshot? initialSchedule = null)
+        ScheduleSnapshot? initialSchedule = null,
+        bool hasConfiguration = false)
     {
         _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         _planner = planner ?? throw new ArgumentNullException(nameof(planner));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        // 有效配置与首次检查结果分开记录：暂停期间保存配置后，恢复时仍需启动检查。
+        _hasConfiguration = hasConfiguration;
         _scheduleSnapshot = initialSchedule ?? new ScheduleSnapshot();
     }
 
@@ -47,7 +51,8 @@ public sealed class ScheduledMonitorRunner
                 _coordinator.Snapshot.CurrentState,
                 now,
                 trigger,
-                ScheduleSnapshot));
+                ScheduleSnapshot,
+                _hasConfiguration));
 
         var run = await _coordinator
             .RunOnceAsync(requestedChecks, cancellationToken)

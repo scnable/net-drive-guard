@@ -6,4 +6,5 @@ public sealed record ScheduleContext(
     MonitorState State,
     DateTimeOffset Now,
     ScheduleTrigger Trigger,
-    ScheduleSnapshot Snapshot);
+    ScheduleSnapshot Snapshot,
+    bool HasConfiguration = false);

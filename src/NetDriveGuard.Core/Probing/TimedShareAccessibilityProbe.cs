@@ -22,6 +22,7 @@ public sealed class TimedShareAccessibilityProbe : IShareAccessibilityProbe
         _accessor = accessor ?? throw new ArgumentNullException(nameof(accessor));
     }
 
+    /// <summary>超时只结束本次等待，不能终止 Windows 的目录访问；后续检查复用未完成任务，防止线程堆积。</summary>
     public async Task<ShareProbeResult> ProbeAsync(
         CancellationToken cancellationToken = default)
     {

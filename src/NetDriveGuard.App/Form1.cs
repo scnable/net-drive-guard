@@ -1,3 +1,4 @@
+using NetDriveGuard.Core.Localization;
 using NetDriveGuard.Core;
 using NetDriveGuard.Core.Events;
 using NetDriveGuard.Core.Monitoring;
@@ -6,13 +7,13 @@ namespace NetDriveGuard.App;
 
 public partial class Form1 : Form
 {
-    private readonly Label _stateValue = CreateValueLabel("尚未配置");
-    private readonly Label _lastCheckValue = CreateValueLabel("尚未执行");
-    private readonly Label _lastChangeValue = CreateValueLabel("尚无记录");
-    private readonly Label _nextCheckValue = CreateValueLabel("等待配置");
+    private readonly Label _stateValue = CreateValueLabel(AppText.Get("尚未配置"));
+    private readonly Label _lastCheckValue = CreateValueLabel(AppText.Get("尚未执行"));
+    private readonly Label _lastChangeValue = CreateValueLabel(AppText.Get("尚无记录"));
+    private readonly Label _nextCheckValue = CreateValueLabel(AppText.Get("等待配置"));
     private readonly Label _lastErrorValue = new()
     {
-        Text = "尚无记录",
+        Text = AppText.Get("尚无记录"),
         AutoSize = true,
         MaximumSize = new Size(440, 0),
         Margin = new Padding(3, 4, 3, 8),
@@ -42,14 +43,14 @@ public partial class Form1 : Form
     };
     private readonly Label _eventCount = new()
     {
-        Text = "显示 0 / 共 0 条",
+        Text = AppText.Get("显示 0 / 共 0 条"),
         AutoSize = true,
         ForeColor = SystemColors.GrayText,
         Margin = new Padding(0, 5, 0, 0),
     };
-    private readonly Button _checkNowButton = new() { Text = "立即检查", AutoSize = true };
-    private readonly Button _pauseButton = new() { Text = "暂停监控", AutoSize = true };
-    private readonly Button _hideButton = new() { Text = "隐藏到托盘", AutoSize = true };
+    private readonly Button _checkNowButton = new() { Text = AppText.Get("立即检查"), AutoSize = true };
+    private readonly Button _pauseButton = new() { Text = AppText.Get("暂停监控"), AutoSize = true };
+    private readonly Button _hideButton = new() { Text = AppText.Get("隐藏到托盘"), AutoSize = true };
     private readonly Label _modeHint = new()
     {
         AutoSize = true,
@@ -70,28 +71,28 @@ public partial class Form1 : Form
     {
         _isDemoMode = isDemoMode;
         _modeHint.Text = isDemoMode
-            ? "演示状态由内置脚本生成，不访问网络，也不会连接或断开网络驱动器。"
-            : "当前为只读原型，尚未配置监控目标，不会连接或断开网络驱动器。";
+            ? AppText.Get("演示状态由内置脚本生成，不访问网络，也不会连接或断开网络驱动器。")
+            : AppText.Get("当前为只读原型，尚未配置监控目标，不会连接或断开网络驱动器。");
         InitializeComponent();
         BuildLayout();
-        Text = $"NetDriveGuard {CoreModule.PrototypeVersion} 监控面板";
+        Text = AppText.Format("NetDriveGuard {0} 监控面板", CoreModule.PrototypeVersion);
         FormClosing += HandleFormClosing;
         _checkNowButton.Click += (_, _) => CheckRequested?.Invoke(this, EventArgs.Empty);
         _pauseButton.Click += (_, _) => TogglePaused();
         _hideButton.Click += (_, _) => Hide();
-        _eventsList.Columns.Add("时间", 145);
-        _eventsList.Columns.Add("级别", 60);
-        _eventsList.Columns.Add("状态", 90);
-        _eventsList.Columns.Add("事件", 280);
+        _eventsList.Columns.Add(AppText.Get("时间"), 145);
+        _eventsList.Columns.Add(AppText.Get("级别"), AppText.Language == "en" ? 75 : 60);
+        _eventsList.Columns.Add(AppText.Get("状态"), AppText.Language == "en" ? 155 : 90);
+        _eventsList.Columns.Add(AppText.Get("事件"), 280);
         _eventFilter.Items.AddRange(
         [
-            new EventFilterOption("全部事件", MonitorEventFilter.All),
-            new EventFilterOption("警告及错误", MonitorEventFilter.WarningAndError),
-            new EventFilterOption("仅错误", MonitorEventFilter.ErrorOnly),
+            new EventFilterOption(AppText.Get("全部事件"), MonitorEventFilter.All),
+            new EventFilterOption(AppText.Get("警告及错误"), MonitorEventFilter.WarningAndError),
+            new EventFilterOption(AppText.Get("仅错误"), MonitorEventFilter.ErrorOnly),
         ]);
         _eventFilter.SelectedIndexChanged += (_, _) => RefreshEventList();
         _eventFilter.SelectedIndex = 0;
-        _eventStateFilter.Items.Add(new EventStateFilterOption("全部状态", null));
+        _eventStateFilter.Items.Add(new EventStateFilterOption(AppText.Get("全部状态"), null));
         foreach (var state in Enum.GetValues<MonitorState>())
         {
             _eventStateFilter.Items.Add(
@@ -100,6 +101,11 @@ public partial class Form1 : Form
 
         _eventStateFilter.SelectedIndexChanged += (_, _) => RefreshEventList();
         _eventStateFilter.SelectedIndex = 0;
+        if (AppText.Language == "en")
+        {
+            _eventFilter.Width = 170;
+            _eventStateFilter.Width = 185;
+        }
     }
 
     public void ShowFromTray()
@@ -109,11 +115,17 @@ public partial class Form1 : Form
         Activate();
     }
 
+    protected override void OnShown(EventArgs eventArgs)
+    {
+        base.OnShown(eventArgs);
+        WindowPlacement.FitToWorkingArea(this);
+    }
+
     public void RecordUnconfiguredCheckRequest()
     {
-        _lastCheckValue.Text = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}（未配置，未探测）";
-        _stateValue.Text = "尚未配置";
-        _nextCheckValue.Text = "等待配置";
+        _lastCheckValue.Text = AppText.Format("{0}（未配置，未探测）", DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        _stateValue.Text = AppText.Get("尚未配置");
+        _nextCheckValue.Text = AppText.Get("等待配置");
     }
 
     public void ApplySnapshot(MonitorSnapshot snapshot)
@@ -125,15 +137,26 @@ public partial class Form1 : Form
         _lastChangeValue.Text = snapshot.LastTransitionAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
         _nextCheckValue.Text = snapshot.CurrentState switch
         {
-            MonitorState.NotConfigured => "等待配置",
-            MonitorState.Paused => "已暂停",
-            _ => "按动态周期",
+            MonitorState.NotConfigured => AppText.Get("等待配置"),
+            MonitorState.Paused => AppText.Get("已暂停"),
+            _ => AppText.Get("按动态周期"),
         };
     }
 
-    public void SetConfiguredReadOnlyMode()
+    /// <summary>分别说明离线处理与恢复重连是否启用，避免把仅观察误认为已在自动维护。</summary>
+    public void SetConfiguredMode(bool repairMissingMapping, bool removeMappingWhenOffline)
     {
-        _modeHint.Text = "正在只读观察配置目标：查询映射、TCP 连通性和共享可访问性，不会修改网络驱动器。";
+        _modeHint.Text = (repairMissingMapping, removeMappingWhenOffline) switch
+        {
+            (false, false) =>
+                AppText.Get("仅监控提醒：未启用离线取消或恢复重连。需要自动维护时，请在常用设置中选择。"),
+            (true, false) =>
+                AppText.Get("已启用恢复重连：服务器可用且映射缺失时尝试连接；离线时不取消映射。"),
+            (false, true) =>
+                AppText.Get("已启用离线取消：确认离线后取消目标映射；恢复重连未开启，需要手动连接。"),
+            _ =>
+                AppText.Get("自动维护已启用：确认离线后取消失效映射，服务器恢复可用后自动重连。盘符冲突时不操作。"),
+        };
     }
 
     public void UpdateRecentEvents(IReadOnlyList<MonitorEvent> events)
@@ -144,7 +167,7 @@ public partial class Form1 : Form
         var lastError = _allEvents.FirstOrDefault(
             monitorEvent => monitorEvent.Severity == MonitorEventSeverity.Error);
         _lastErrorValue.Text = lastError is null
-            ? "尚无记录"
+            ? AppText.Get("尚无记录")
             : $"{lastError.OccurredAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}  {lastError.Description}";
         RefreshEventList();
     }
@@ -185,14 +208,14 @@ public partial class Form1 : Form
             _eventsList.EndUpdate();
         }
 
-        _eventCount.Text = $"显示 {events.Count} / 共 {_allEvents.Count} 条";
+        _eventCount.Text = AppText.Format("显示 {0} / 共 {1} 条", events.Count, _allEvents.Count);
     }
 
     public void ShowConfigurationProblem(string message)
     {
-        _stateValue.Text = "配置不可用";
-        _lastCheckValue.Text = "未执行";
-        _nextCheckValue.Text = "等待修正配置";
+        _stateValue.Text = AppText.Get("配置不可用");
+        _lastCheckValue.Text = AppText.Get("未执行");
+        _nextCheckValue.Text = AppText.Get("等待修正配置");
         _modeHint.Text = message;
     }
 
@@ -209,12 +232,12 @@ public partial class Form1 : Form
     private void TogglePaused()
     {
         IsPaused = !IsPaused;
-        _pauseButton.Text = IsPaused ? "恢复监控" : "暂停监控";
+        _pauseButton.Text = IsPaused ? AppText.Get("恢复监控") : AppText.Get("暂停监控");
         _checkNowButton.Enabled = !IsPaused;
         _stateValue.Text = IsPaused
-            ? _isDemoMode ? "已暂停（安全演示）" : "已暂停（尚未配置）"
-            : _isDemoMode ? GetStateText(MonitorState.Healthy) : "尚未配置";
-        _nextCheckValue.Text = IsPaused ? "已暂停" : "等待配置";
+            ? _isDemoMode ? AppText.Get("已暂停（安全演示）") : AppText.Get("已暂停（尚未配置）")
+            : _isDemoMode ? GetStateText(MonitorState.Healthy) : AppText.Get("尚未配置");
+        _nextCheckValue.Text = IsPaused ? AppText.Get("已暂停") : AppText.Get("等待配置");
         PauseToggled?.Invoke(this, EventArgs.Empty);
     }
 
@@ -222,18 +245,18 @@ public partial class Form1 : Form
     {
         return state switch
         {
-            MonitorState.NotConfigured => "尚未配置",
-            MonitorState.Checking => "正在确认",
-            MonitorState.Healthy => "正常",
-            MonitorState.ServerOffline => "服务器离线",
-            MonitorState.MappingMissing => "映射缺失",
-            MonitorState.Repairing => "正在修复",
-            MonitorState.AuthenticationFailed => "认证失败",
-            MonitorState.ShareUnavailable => "共享不可用",
-            MonitorState.DriveConflict => "盘符冲突",
-            MonitorState.Paused => "已暂停",
-            MonitorState.InternalError => "内部错误",
-            _ => "未知状态",
+            MonitorState.NotConfigured => AppText.Get("尚未配置"),
+            MonitorState.Checking => AppText.Get("正在确认"),
+            MonitorState.Healthy => AppText.Get("正常"),
+            MonitorState.ServerOffline => AppText.Get("服务器离线"),
+            MonitorState.MappingMissing => AppText.Get("映射缺失"),
+            MonitorState.Repairing => AppText.Get("正在修复"),
+            MonitorState.AuthenticationFailed => AppText.Get("认证失败"),
+            MonitorState.ShareUnavailable => AppText.Get("共享不可用"),
+            MonitorState.DriveConflict => AppText.Get("盘符冲突"),
+            MonitorState.Paused => AppText.Get("已暂停"),
+            MonitorState.InternalError => AppText.Get("内部错误"),
+            _ => AppText.Get("未知状态"),
         };
     }
 
@@ -252,7 +275,7 @@ public partial class Form1 : Form
     {
         var title = new Label
         {
-            Text = _isDemoMode ? "网络驱动器监控（安全演示）" : "网络驱动器监控",
+            Text = _isDemoMode ? AppText.Get("网络驱动器监控（安全演示）") : AppText.Get("网络驱动器监控"),
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
             Margin = new Padding(0, 0, 0, 12),
@@ -265,17 +288,17 @@ public partial class Form1 : Form
             ColumnCount = 2,
             Dock = DockStyle.Top,
         };
-        stateGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        stateGrid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         stateGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        AddRow(stateGrid, "当前状态", _stateValue);
-        AddRow(stateGrid, "上次检查", _lastCheckValue);
-        AddRow(stateGrid, "上次变化", _lastChangeValue);
-        AddRow(stateGrid, "下次检查", _nextCheckValue);
-        AddRow(stateGrid, "最近错误", _lastErrorValue);
+        AddRow(stateGrid, AppText.Get("当前状态"), _stateValue);
+        AddRow(stateGrid, AppText.Get("上次检查"), _lastCheckValue);
+        AddRow(stateGrid, AppText.Get("上次变化"), _lastChangeValue);
+        AddRow(stateGrid, AppText.Get("下次检查"), _nextCheckValue);
+        AddRow(stateGrid, AppText.Get("最近错误"), _lastErrorValue);
 
         var eventsTitle = new Label
         {
-            Text = _isDemoMode ? "最近事件（演示模式不落盘）" : "最近事件",
+            Text = _isDemoMode ? AppText.Get("最近事件（演示模式不落盘）") : AppText.Get("最近事件"),
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
             Margin = new Padding(0, 18, 0, 0),
@@ -290,14 +313,14 @@ public partial class Form1 : Form
         };
         eventFilters.Controls.Add(new Label
         {
-            Text = "级别",
+            Text = AppText.Get("级别"),
             AutoSize = true,
             Margin = new Padding(0, 5, 0, 0),
         });
         eventFilters.Controls.Add(_eventFilter);
         eventFilters.Controls.Add(new Label
         {
-            Text = "状态",
+            Text = AppText.Get("状态"),
             AutoSize = true,
             Margin = new Padding(0, 5, 0, 0),
         });
@@ -312,16 +335,32 @@ public partial class Form1 : Form
         };
         actions.Controls.AddRange([_checkNowButton, _pauseButton, _hideButton]);
 
-        var content = new FlowLayoutPanel
+        // 使用单列表格给每一行完整宽度，避免 FlowLayoutPanel 把状态值挤成竖排。
+        var content = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            Padding = new Padding(24),
-            AutoScroll = true,
+            ColumnCount = 1,
+            RowCount = 7,
+            Padding = new Padding(20),
         };
-        content.Controls.AddRange(
-            [title, _modeHint, stateGrid, eventsTitle, eventFilters, _eventsList, actions]);
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        for (var row = 0; row < 7; row++)
+        {
+            content.RowStyles.Add(new RowStyle(row == 5 ? SizeType.Percent : SizeType.AutoSize, row == 5 ? 100 : 0));
+        }
+
+        _modeHint.Dock = DockStyle.Fill;
+        stateGrid.Dock = DockStyle.Fill;
+        _eventsList.Dock = DockStyle.Fill;
+        eventFilters.Dock = DockStyle.Fill;
+        eventFilters.WrapContents = true;
+        actions.Dock = DockStyle.Fill;
+        Control[] rows = [title, _modeHint, stateGrid, eventsTitle, eventFilters, _eventsList, actions];
+        for (var row = 0; row < rows.Length; row++)
+        {
+            content.Controls.Add(rows[row], 0, row);
+        }
+
         Controls.Add(content);
     }
 
@@ -329,10 +368,10 @@ public partial class Form1 : Form
     {
         return severity switch
         {
-            MonitorEventSeverity.Information => "信息",
-            MonitorEventSeverity.Warning => "警告",
-            MonitorEventSeverity.Error => "错误",
-            _ => "未知",
+            MonitorEventSeverity.Information => AppText.Get("信息"),
+            MonitorEventSeverity.Warning => AppText.Get("警告"),
+            MonitorEventSeverity.Error => AppText.Get("错误"),
+            _ => AppText.Get("未知"),
         };
     }
 

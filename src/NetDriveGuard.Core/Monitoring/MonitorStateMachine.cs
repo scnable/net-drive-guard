@@ -161,6 +161,14 @@ public sealed class MonitorStateMachine(MonitorPolicy policy)
         MonitorState problemState,
         string eventCode)
     {
+        // 离线确认途中偶发的内部错误先留在面板，不抢在离线结论前弹窗。
+        // 保留上一个稳定状态；下一次仍是内部错误时再确认并提醒，避免持续故障被隐藏。
+        if (problemState == MonitorState.InternalError
+            && previous.CurrentState == MonitorState.Checking)
+        {
+            return Pending(previous, observation, problemState, eventCode);
+        }
+
         return Confirm(
             previous,
             observation,

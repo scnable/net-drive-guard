@@ -17,6 +17,7 @@ public sealed class LayeredSchedulePlanner(MonitoringIntervals intervals)
         }
 
         if (context.State == MonitorState.NotConfigured
+            && !context.HasConfiguration
             && context.Trigger != ScheduleTrigger.ConfigurationSaved)
         {
             return CheckLayer.None;

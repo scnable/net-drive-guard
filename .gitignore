@@ -3,6 +3,9 @@
 /win10_shell/
 /internal-tools/
 
+# 测试源码仅保留在私有库
+/tests/
+
 # 项目本地开发工具
 /.dotnet/
 /.tools/
@@ -27,3 +30,21 @@
 
 # 发布产物
 /publish/
+
+# 实际运行数据（数据目录可由用户选择，可能位于任意子目录）
+config.json
+storage-path.json
+events.jsonl
+events.[0-9]*.jsonl
+NetDriveGuard-diagnostic-*.json
+
+# 本地环境变量和私钥材料；示例配置仍可提交
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pfx
+*.p12
+*.key
+id_rsa
+id_ed25519

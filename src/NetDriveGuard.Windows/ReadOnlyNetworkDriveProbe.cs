@@ -176,15 +176,7 @@ public sealed class ReadOnlyNetworkDriveProbe : ILayeredProbe<MonitorObservation
 
     private bool TargetsConfiguredShare(string? remotePath)
     {
-        return string.Equals(
-            NormalizeSharePath(remotePath),
-            NormalizeSharePath(_configuration.SharePath),
-            StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string NormalizeSharePath(string? path)
-    {
-        return (path ?? string.Empty).Trim().TrimEnd('\\');
+        return NetworkSharePathComparer.AreEquivalent(remotePath, _configuration.SharePath);
     }
 
     private static string GetObservationCode(ObservationStatus status)
