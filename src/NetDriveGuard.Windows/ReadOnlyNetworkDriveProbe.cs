@@ -144,8 +144,11 @@ public sealed class ReadOnlyNetworkDriveProbe : ILayeredProbe<MonitorObservation
                 NetworkDriveQueryStatus.Error => ObservationStatus.InternalError,
                 NetworkDriveQueryStatus.InvalidDrive => ObservationStatus.InternalError,
                 NetworkDriveQueryStatus.NotMapped => ObservationStatus.MappingMissing,
+                NetworkDriveQueryStatus.Disconnected => ObservationStatus.MappingMissing,
                 NetworkDriveQueryStatus.Mapped when !TargetsConfiguredShare(_lastMapping.RemotePath) =>
-                    ObservationStatus.DriveConflict,
+                    _configuration.RepairMissingMapping
+                        ? ObservationStatus.MappingMissing
+                        : ObservationStatus.DriveConflict,
                 _ => (ObservationStatus?)null,
             };
 

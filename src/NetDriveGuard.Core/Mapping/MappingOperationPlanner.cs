@@ -7,7 +7,7 @@ namespace NetDriveGuard.Core.Mapping;
 /// </summary>
 public static class MappingOperationPlanner
 {
-    /// <summary>根据刚查询的盘符状态决定是否允许操作；查询失败或被其他共享占用时拒绝写入。</summary>
+    /// <summary>以当前配置为准管理指定盘符；自动操作关闭或无法确认映射时不替换。</summary>
     public static MappingOperationPlan Plan(
         MappingOperationIntent intent,
         MonitorConfiguration configuration,
@@ -32,11 +32,13 @@ public static class MappingOperationPlanner
         return currentMapping.Status switch
         {
             NetworkDriveQueryStatus.NotMapped => PlanForMissingMapping(intent, driveLetter, sharePath),
-            NetworkDriveQueryStatus.Mapped => PlanForExistingMapping(
+            NetworkDriveQueryStatus.Mapped or NetworkDriveQueryStatus.Disconnected => PlanForExistingMapping(
                 intent,
                 driveLetter,
                 sharePath,
-                currentMapping.RemotePath),
+                currentMapping.RemotePath,
+                currentMapping.Status == NetworkDriveQueryStatus.Disconnected,
+                configuration),
             NetworkDriveQueryStatus.InvalidDrive => Blocked(
                 "mapping.blocked-invalid-drive",
                 driveLetter,
@@ -63,14 +65,38 @@ public static class MappingOperationPlanner
         MappingOperationIntent intent,
         string driveLetter,
         string configuredSharePath,
-        string? currentRemotePath)
+        string? currentRemotePath,
+        bool disconnected,
+        MonitorConfiguration configuration)
     {
-        if (!NetworkSharePathComparer.AreEquivalent(currentRemotePath, configuredSharePath))
+        if (!NetworkSharePathComparer.TryNormalize(currentRemotePath, out _))
         {
+            return Blocked("mapping.blocked-query-error", driveLetter, configuredSharePath);
+        }
+
+        var sameTarget = NetworkSharePathComparer.AreEquivalent(currentRemotePath, configuredSharePath);
+        if (!sameTarget)
+        {
+            // 用户保存的盘符和地址就是管理目标，不要求用户先手动清理旧映射。
+            if (intent == MappingOperationIntent.EnsureMapped && configuration.RepairMissingMapping)
+            {
+                return Ready(MappingOperation.Replace, "mapping.replace-ready", driveLetter, configuredSharePath);
+            }
+
+            if (intent == MappingOperationIntent.EnsureUnmapped && configuration.RemoveMappingWhenOffline)
+            {
+                return Ready(MappingOperation.Disconnect, "mapping.disconnect-ready", driveLetter, configuredSharePath);
+            }
+
             return Blocked(
                 "mapping.blocked-drive-conflict",
                 driveLetter,
                 configuredSharePath);
+        }
+
+        if (disconnected && intent == MappingOperationIntent.EnsureMapped)
+        {
+            return Ready(MappingOperation.Replace, "mapping.replace-ready", driveLetter, configuredSharePath);
         }
 
         return intent == MappingOperationIntent.EnsureMapped

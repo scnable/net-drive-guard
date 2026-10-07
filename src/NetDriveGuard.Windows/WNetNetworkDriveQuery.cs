@@ -38,9 +38,16 @@ public sealed class WNetNetworkDriveQuery : INetworkDriveQuery
             result = WNetGetConnection(normalizedDrive, remotePath, ref bufferLength);
         }
 
+        return FromNativeResult(result, remotePath.ToString());
+    }
+
+    // 1201 表示持久映射仍占用盘符，但连接已断开；不能当成程序内部错误。
+    internal static NetworkDriveQueryResult FromNativeResult(int result, string remotePath)
+    {
         return result switch
         {
-            NoError => new NetworkDriveQueryResult(NetworkDriveQueryStatus.Mapped, remotePath.ToString()),
+            NoError => new NetworkDriveQueryResult(NetworkDriveQueryStatus.Mapped, remotePath),
+            1201 => new NetworkDriveQueryResult(NetworkDriveQueryStatus.Disconnected, remotePath, result),
             ErrorBadDevice or ErrorNotConnected => new NetworkDriveQueryResult(
                 NetworkDriveQueryStatus.NotMapped,
                 NativeErrorCode: result),

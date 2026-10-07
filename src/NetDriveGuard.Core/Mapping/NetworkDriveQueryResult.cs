@@ -5,5 +5,5 @@ public sealed record NetworkDriveQueryResult(
     string? RemotePath = null,
     int NativeErrorCode = 0)
 {
-    public bool IsMapped => Status == NetworkDriveQueryStatus.Mapped;
+    public bool IsMapped => Status is NetworkDriveQueryStatus.Mapped or NetworkDriveQueryStatus.Disconnected;
 }

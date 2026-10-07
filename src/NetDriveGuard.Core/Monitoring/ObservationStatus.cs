@@ -13,4 +13,5 @@ public enum ObservationStatus
     ShareUnavailable,
     DriveConflict,
     InternalError,
+    MappingFailed,
 }

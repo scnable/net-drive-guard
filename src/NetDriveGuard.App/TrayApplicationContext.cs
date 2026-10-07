@@ -302,10 +302,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             }
         }
 
-        var wasStartupEnabled = startupState?.IsRegistered
-            ?? settingsConfiguration?.StartAtLogon
-            ?? false;
-        if (selectedConfiguration.StartAtLogon != wasStartupEnabled)
+        if (startupState?.RequiresUpdate(selectedConfiguration.StartAtLogon)
+            ?? (selectedConfiguration.StartAtLogon != (settingsConfiguration?.StartAtLogon ?? false)))
         {
             if (string.IsNullOrWhiteSpace(executablePath))
             {
@@ -570,7 +568,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         var decision = result.Run.Decision;
-        var monitorEvent = MonitorEventFactory.Create(decision, _lastDecisionState);
+        var monitorEvent = MonitorEventFactory.Create(decision, _lastDecisionState, result.Run.Remediation);
         _lastDecisionState = decision.Snapshot.CurrentState;
         if (monitorEvent is not null)
         {
@@ -671,7 +669,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
             recovered
                 ? _isDemoMode ? AppText.Get("[演示] 网络驱动器已恢复") : AppText.Get("网络驱动器已恢复")
                 : _isDemoMode ? AppText.Get("[演示] 网络驱动器状态发生变化") : AppText.Get("网络驱动器状态发生变化"),
-            AppText.Format("当前状态：{0}", GetStateText(decision.Snapshot.CurrentState)),
+            decision.Snapshot.CurrentState == MonitorState.MappingFailed
+                ? AppText.Get(MonitorEventFactory.DescribeMappingFailure(decision.EventCode))
+                : AppText.Format("当前状态：{0}", GetStateText(decision.Snapshot.CurrentState)),
             recovered ? ToolTipIcon.Info : ToolTipIcon.Warning);
     }
 
@@ -755,6 +755,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             MonitorState.DriveConflict => AppText.Get("盘符冲突"),
             MonitorState.Paused => AppText.Get("已暂停"),
             MonitorState.InternalError => AppText.Get("内部错误"),
+            MonitorState.MappingFailed => AppText.Get("网络盘操作失败"),
             _ => AppText.Get("未知状态"),
         };
     }

@@ -155,7 +155,7 @@ public partial class Form1 : Form
             (false, true) =>
                 AppText.Get("已启用离线取消：确认离线后取消目标映射；恢复重连未开启，需要手动连接。"),
             _ =>
-                AppText.Get("自动维护已启用：确认离线后取消失效映射，服务器恢复可用后自动重连。盘符冲突时不操作。"),
+                AppText.Get("自动维护已启用：按当前配置管理所选盘符，正常断开旧映射后连接新目标，不强制关闭文件。"),
         };
     }
 
@@ -256,6 +256,7 @@ public partial class Form1 : Form
             MonitorState.DriveConflict => AppText.Get("盘符冲突"),
             MonitorState.Paused => AppText.Get("已暂停"),
             MonitorState.InternalError => AppText.Get("内部错误"),
+            MonitorState.MappingFailed => AppText.Get("网络盘操作失败"),
             _ => AppText.Get("未知状态"),
         };
     }

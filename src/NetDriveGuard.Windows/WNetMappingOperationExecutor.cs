@@ -34,9 +34,21 @@ public sealed class WNetMappingOperationExecutor : IMappingOperationExecutor
             return MappingExecutionResult.Failed("mapping.execution-not-authorized");
         }
 
+        // 先非强制断开旧映射，成功后才连接新地址；占用中的文件不会被强制关闭。
+        if (plan.Operation == MappingOperation.Replace)
+        {
+            var disconnectError = _api.Disconnect(plan.DriveLetter, updateProfile: true, force: false);
+            if (disconnectError is not (0 or 2250))
+            {
+                return MappingExecutionResult.Failed(
+                    disconnectError is 2401 or 2404 ? "mapping.in-use" : "mapping.disconnect-failed",
+                    disconnectError);
+            }
+        }
+
         var errorCode = plan.Operation switch
         {
-            MappingOperation.Connect => _api.Connect(
+            MappingOperation.Connect or MappingOperation.Replace => _api.Connect(
                 plan.DriveLetter,
                 plan.SharePath,
                 credential?.UserName,
@@ -52,15 +64,16 @@ public sealed class WNetMappingOperationExecutor : IMappingOperationExecutor
         if (errorCode == 0)
         {
             return MappingExecutionResult.Succeeded(
-                plan.Operation == MappingOperation.Connect
+                plan.Operation is MappingOperation.Connect or MappingOperation.Replace
                     ? "mapping.connected"
                     : "mapping.disconnected");
         }
 
         return MappingExecutionResult.Failed(
-            plan.Operation == MappingOperation.Connect
-                ? "mapping.connect-failed"
-                : "mapping.disconnect-failed",
+            errorCode is 2401 or 2404 ? "mapping.in-use"
+                : plan.Operation is MappingOperation.Connect or MappingOperation.Replace
+                    ? "mapping.connect-failed"
+                    : "mapping.disconnect-failed",
             errorCode);
     }
 }

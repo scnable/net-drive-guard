@@ -6,4 +6,5 @@ public enum NetworkDriveQueryStatus
     NotMapped,
     InvalidDrive,
     Error,
+    Disconnected,
 }

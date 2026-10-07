@@ -36,10 +36,7 @@ public sealed class TaskSchedulerStartupManager : IStartupManager
                 new StartupRegistrationState(
                     StartupRegistrationStatus.Error,
                     "startup.query-failed"),
-            ScheduledTaskQueryStatus.Found when IsManagedTask(query.Xml, executablePath) =>
-                new StartupRegistrationState(
-                    StartupRegistrationStatus.Registered,
-                    "startup.registered"),
+            ScheduledTaskQueryStatus.Found => ReadManagedTask(query.Xml, executablePath),
             _ => new StartupRegistrationState(
                 StartupRegistrationStatus.Conflict,
                 "startup.task-conflict"),
@@ -95,11 +92,13 @@ public sealed class TaskSchedulerStartupManager : IStartupManager
             : StartupOperationResult.Failed("startup.disable-failed");
     }
 
-    private static bool IsManagedTask(string? xml, string executablePath)
+    // 程序升级或移动不会改变任务归属；标记用于识别本工具任务，路径只用于判断是否需要更新。
+    private static StartupRegistrationState ReadManagedTask(string? xml, string executablePath)
     {
+        var conflict = new StartupRegistrationState(StartupRegistrationStatus.Conflict, "startup.task-conflict");
         if (string.IsNullOrWhiteSpace(xml))
         {
-            return false;
+            return conflict;
         }
 
         try
@@ -108,20 +107,31 @@ public sealed class TaskSchedulerStartupManager : IStartupManager
             var description = document.Descendants()
                 .FirstOrDefault(element => element.Name.LocalName == "Description")
                 ?.Value;
-            var command = document.Descendants()
-                .FirstOrDefault(element => element.Name.LocalName == "Command")
-                ?.Value;
-            return string.Equals(description, ManagedMarker, StringComparison.Ordinal)
-                && !string.IsNullOrWhiteSpace(command)
-                && string.Equals(
-                    Path.GetFullPath(command),
-                    Path.GetFullPath(executablePath),
-                    StringComparison.OrdinalIgnoreCase);
+            var actions = document.Root?.Elements().FirstOrDefault(element => element.Name.LocalName == "Actions")
+                ?.Elements().ToArray();
+            var action = actions is { Length: 1 } ? actions[0] : null;
+            var command = action?.Elements().FirstOrDefault(element => element.Name.LocalName == "Command")?.Value;
+            var arguments = action?.Elements().FirstOrDefault(element => element.Name.LocalName == "Arguments")?.Value;
+            if (!string.Equals(description, ManagedMarker, StringComparison.Ordinal)
+                || action?.Name.LocalName != "Exec"
+                || string.IsNullOrWhiteSpace(command)
+                || !Path.IsPathFullyQualified(command)
+                || !string.Equals(Path.GetFileName(command), Path.GetFileName(executablePath), StringComparison.OrdinalIgnoreCase)
+                || !string.IsNullOrWhiteSpace(arguments))
+            {
+                return conflict;
+            }
+
+            var enabled = document.Root?.Elements().FirstOrDefault(element => element.Name.LocalName == "Settings")
+                ?.Elements().FirstOrDefault(element => element.Name.LocalName == "Enabled")?.Value;
+            return new StartupRegistrationState(StartupRegistrationStatus.Registered, "startup.registered",
+                PathNeedsUpdate: !string.Equals(Path.GetFullPath(command), Path.GetFullPath(executablePath), StringComparison.OrdinalIgnoreCase),
+                Enabled: enabled is not ("false" or "0"));
         }
         catch (Exception exception) when (
             exception is System.Xml.XmlException or ArgumentException or NotSupportedException)
         {
-            return false;
+            return conflict;
         }
     }
 

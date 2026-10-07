@@ -13,4 +13,5 @@ public enum MonitorState
     DriveConflict,
     Paused,
     InternalError,
+    MappingFailed,
 }

@@ -124,10 +124,12 @@ public sealed class MonitorCoordinator : IDisposable
                 {
                     decision = _stateMachine.Evaluate(
                         new MonitorObservation(
-                            ObservationStatus.InternalError,
+                            remediationResult.Code == "remediation.unhandled-error"
+                                ? ObservationStatus.InternalError
+                                : ObservationStatus.MappingFailed,
                             _clock.UtcNow,
                             remediationResult.Code),
-                        decision.Snapshot);
+                        decision.Snapshot with { LastStableState = Snapshot.LastStableState });
                 }
             }
 

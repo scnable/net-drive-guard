@@ -11,6 +11,7 @@ public enum MappingOperation
     None,
     Connect,
     Disconnect,
+    Replace,
 }
 
 public enum MappingPlanStatus

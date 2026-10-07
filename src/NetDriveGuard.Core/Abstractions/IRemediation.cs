@@ -8,9 +8,9 @@ public interface IRemediation<in TAction>
     Task<RemediationResult> ExecuteAsync(TAction action, CancellationToken cancellationToken);
 }
 
-public sealed record RemediationResult(bool Success, string Code)
+public sealed record RemediationResult(bool Success, string Code, int? NativeErrorCode = null)
 {
     public static RemediationResult Succeeded(string code = "remediation.succeeded") => new(true, code);
 
-    public static RemediationResult Failed(string code) => new(false, code);
+    public static RemediationResult Failed(string code, int? nativeErrorCode = null) => new(false, code, nativeErrorCode);
 }

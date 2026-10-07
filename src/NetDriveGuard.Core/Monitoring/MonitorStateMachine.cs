@@ -69,6 +69,12 @@ public sealed class MonitorStateMachine(MonitorPolicy policy)
                 MonitorState.InternalError,
                 "state.internal-error"),
 
+            ObservationStatus.MappingFailed => ConfirmProblem(
+                previousState,
+                observation,
+                MonitorState.MappingFailed,
+                observation.Code),
+
             _ => throw new ArgumentOutOfRangeException(nameof(observation), observation.Status, "未知观察状态。"),
         };
     }
@@ -92,7 +98,8 @@ public sealed class MonitorStateMachine(MonitorPolicy policy)
             or MonitorState.AuthenticationFailed
             or MonitorState.ShareUnavailable
             or MonitorState.DriveConflict
-            or MonitorState.InternalError;
+            or MonitorState.InternalError
+            or MonitorState.MappingFailed;
 
         return Confirm(
             previous,

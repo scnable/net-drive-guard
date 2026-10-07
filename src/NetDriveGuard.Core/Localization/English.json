@@ -1,4 +1,13 @@
 {
+  "网络盘操作失败": "Network drive operation failed",
+  "自动维护已启用：按当前配置管理所选盘符，正常断开旧映射后连接新目标，不强制关闭文件。": "Automatic maintenance follows the current settings for the selected drive. Old mappings are disconnected normally before connecting the new target; open files are not forced closed.",
+  "目标切换或断开失败：旧网络盘正在使用，请关闭相关文件后等待自动重试。": "Cannot switch or disconnect: the old network drive is in use. Close its files and wait for an automatic retry.",
+  "连接失败：当前目标的凭据无效或权限不足，请在设置中更新账号和密码。": "Connection failed: invalid credentials or insufficient permissions for the current target. Update the account and password in settings.",
+  "连接失败：Windows 已使用其他账号连接该服务器。": "Connection failed: Windows is already connected to this server using another account.",
+  "连接失败：当前服务器或共享名称不可用，请检查共享地址。": "Connection failed: the current server or share name is unavailable. Check the share address.",
+  "旧映射未能正常断开，未强制关闭文件，将自动重试。": "The old mapping could not be disconnected normally. No files were forced closed. An automatic retry will follow.",
+  "当前目标的已保存凭据读取失败，请在设置中重新保存凭据。": "Cannot read the saved credentials for the current target. Save credentials again in settings.",
+  "网络盘操作失败，将按当前配置自动重试；请查看事件代码。": "Network drive operation failed. Automatic retries will follow the current settings; see the event code.",
   "服务器恢复可用后自动重连（也修复缺失映射）": "Reconnect when available (also restore missing mappings)",
   "确认服务器离线后取消失效映射": "Disconnect stale mapping after confirming server is offline",
   "开机自启动": "Start with Windows",

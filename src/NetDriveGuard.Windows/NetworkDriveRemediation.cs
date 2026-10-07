@@ -77,7 +77,7 @@ public sealed class NetworkDriveRemediation : IRemediation<MonitorAction>
             return Task.FromResult(RemediationResult.Failed(plan.Code));
         }
 
-        if (plan.Operation != MappingOperation.Connect)
+        if (plan.Operation is not (MappingOperation.Connect or MappingOperation.Replace))
         {
             return Task.FromResult(ToRemediationResult(_executor.Execute(plan)));
         }
@@ -99,6 +99,12 @@ public sealed class NetworkDriveRemediation : IRemediation<MonitorAction>
     {
         return result.Success
             ? RemediationResult.Succeeded(result.Code)
-            : RemediationResult.Failed(result.Code);
+            : RemediationResult.Failed(result.NativeErrorCode switch
+            {
+                5 or 86 or 1326 => "mapping.authentication-failed",
+                1219 => "mapping.credential-conflict",
+                53 or 67 => "mapping.path-unavailable",
+                _ => result.Code,
+            }, result.NativeErrorCode);
     }
 }
