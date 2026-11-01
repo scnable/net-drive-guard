@@ -49,4 +49,3 @@ undocumented_unsafe_blocks = "deny"
 [[bin]]
 name = "net-drive-guard-inspect"
 path = "src/main.rs"
-
