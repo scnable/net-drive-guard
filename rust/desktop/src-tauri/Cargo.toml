@@ -1,0 +1,30 @@
+[package]
+name = "net-drive-guard-desktop"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+net-drive-guard-app = { path = "../../app" }
+net-drive-guard-core = { path = "../.." }
+net-drive-guard-windows = { path = "../../windows" }
+
+[target.'cfg(windows)'.dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+zeroize = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,8 @@
+/target/
+/desktop/node_modules/
+/desktop/dist/
+/desktop/src-tauri/target/
+/desktop/test-results/
+
+/desktop/src-tauri/gen/
+/tools/__pycache__/

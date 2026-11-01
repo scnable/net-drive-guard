@@ -1,0 +1,52 @@
+[package]
+name = "net-drive-guard-windows"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "Windows adapters and bounded read-only diagnostics for NetDriveGuard"
+
+[dependencies]
+net-drive-guard-core = { path = ".." }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+zeroize = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.58"
+winvd = "=0.0.49"
+windows = { version = "0.58", features = ["implement", "Win32_Foundation", "Win32_System_Com", "Win32_System_Ole", "Win32_System_Variant"] }
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_HiDpi",
+    "Win32_Globalization",
+    "Win32_NetworkManagement_WNet",
+    "Win32_NetworkManagement_NetManagement",
+    "Win32_Security",
+    "Win32_Security_Credentials",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
+    "Win32_System_Power",
+    "Win32_System_Registry",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Storage_FileSystem",
+    "Win32_System_JobObjects",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Threading",
+    "Win32_System_LibraryLoader",
+] }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
+
+[[bin]]
+name = "net-drive-guard-inspect"
+path = "src/main.rs"
+

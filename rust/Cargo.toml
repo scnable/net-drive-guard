@@ -1,0 +1,21 @@
+[package]
+name = "net-drive-guard-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "Platform-independent decisions for NetDriveGuard's Windows network drive maintenance"
+
+[workspace]
+members = ["windows", "app"]
+exclude = ["desktop/src-tauri"]
+resolver = "2"
+
+[dependencies]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[[bin]]
+name = "net-drive-guard-demo"
+path = "src/main.rs"

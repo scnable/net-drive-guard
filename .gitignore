@@ -48,3 +48,17 @@ NetDriveGuard-diagnostic-*.json
 *.key
 id_rsa
 id_ed25519
+
+# Rust 内部测试与桌面验证工具
+/rust/tests/
+/rust/windows/tests/
+/rust/app/src/tests.rs
+/rust/desktop/tests/
+/rust/desktop/playwright.config.ts
+/rust/desktop/tools/*smoke*.mjs
+/rust/desktop/tools/acceptance-windows.mjs
+/rust/tools/start-smb-fixture.py
+/rust/tools/verify-windows.ps1
+/rust/tools/windows-session.py
+/rust/windows/src/remote_check.rs
+/AGENTS.md
